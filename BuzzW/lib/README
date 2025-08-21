@@ -1,0 +1,33 @@
+# Buzz Wire Game Project
+
+## Overview
+This repository contains the source code for a **Buzz Wire game** implemented on an Arduino Uno (ATmega328P). The project includes modular C libraries for handling:
+
+- **Input** (buttons and touch wire detection)
+- **Output** (display and buzzer)
+- **Game logic** (timing, win/lose conditions)
+- **Utility functions** (millis timer, hardware timer management)
+
+The game challenges the player to carefully guide a wire loop along a wire without touching it, measuring time and signaling success or failure with a buzzer and display.
+
+## Technologies & Tools
+- PlatformIO (build system and environment)
+- AVR-GCC compiler targeting ATmega328P
+- Arduino Uno hardware
+- Modular C code organization with separate libraries (`buttons`, `buzzer`, `display`, `game_logic`, `millis`, `timer`)
+
+## Progress Last Week
+- Implemented core game logic including timer tracking with `millis()` and input handling for wire touch and goal detection.
+- Created a timer display feature showing elapsed time in MMSS format on a 4-digit display.
+- Developed functions to show temporary messages on the display.
+- Refined hardware abstraction layers for buzzer and input pins using AVR registers.
+- Added appropriate header file includes to resolve implicit function declaration warnings.
+- Successfully built and linked the project with all libraries on PlatformIO for the Arduino Uno.
+- Began integrating timer and buzzer modules with the main game loop for event-driven sound control.
+
+## Next Steps
+- Complete the integration of buzzer timing and sound feedback based on game events.
+- Add more detailed game states and user interaction feedback.
+- Implement hardware setup and wiring on the physical Arduino Uno (still needs to be done).
+- Implement score tracking and memory storage if feasible.
+- Test and debug edge cases and timer rollover behavior.

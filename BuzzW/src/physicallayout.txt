@@ -1,0 +1,8 @@
+Buzzer: Connect to a digital pin (e.g., D3) and GND.
+Wire Course: One end to GND, the other to a digital input (e.g., D2) with pull-up enabled.
+Loop (Wand): Connect to GND or another digital pin.
+Buttons: Use the shield’s left and right buttons for start/stop (check your shield’s pinout).
+Display: Already handled by the shield library.
+
+Tip: Use male-to-male wires to connect the course and wand to the shield’s digital pins and GND.
+

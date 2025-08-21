@@ -1,0 +1,262 @@
+================================================================================
+                            BUZZWIRE GAME - CODE SUMMARY
+================================================================================
+
+GAME OVERVIEW:
+The BuzzWire game is an embedded system project where players navigate a wire 
+loop along a twisted wire path without making contact. Each contact is penalized,
+and the goal is to complete the course in minimum time with fewest contacts.
+
+HARDWARE COMPONENTS:
+- 4-digit 7-segment display with shift register (multiplexed timer/contact display)
+- 3 buttons (left: start game, right: stop game, middle: unused/available)
+- LED on pin PC0 (1-second visual feedback on contact)
+- Passive buzzer on pin PD3 (880Hz audio feedback on contact)
+- Wire detection circuit on PC5 with pull-up resistor (interrupt-driven detection)
+- Wooden plank, copper wires, metal wire loop for physical game structure
+
+================================================================================
+                        REQUIREMENT 1: TIMER USAGE
+================================================================================
+
+TIMER0 - Millisecond Timing System:
+Location: lib/millis/millis.c
+
+Configuration:
+- Mode: CTC (Clear Timer on Compare Match)
+- Prescaler: 64 (16MHz ÷ 64 = 250kHz)
+- Compare Value: OCR0A = 249 (250 counts = 1ms period)
+- Frequency: 250kHz ÷ 250 = 1000Hz = 1ms intervals
+
+Usage throughout the game:
+1. Game timing: startTime = millis() tracks total game duration
+2. Contact timing: Records exact timestamp of each wire contact
+3. LED control: 1-second LED flash duration (millis() - led_on_time >= 1000)
+4. Display control: 1-second contact count display duration before returning to timer
+5. Button debouncing: Prevents multiple button presses
+6. Game auto-reset: 5-second delay in FINISHED state before returning to IDLE
+
+PASSIVE BUZZER - Direct Pin Control (No Timer Required):
+Location: lib/buzzer/buzzer.c
+
+Pin Configuration: PD3 (Digital Pin 3 on Arduino Uno)
+- playTone(880.0, 150): Creates 880Hz A5 note for 150ms on wire contact
+- Uses software-generated square wave with _delay_us() for precise frequency
+- Active-low buzzer: LOW = sound on, HIGH = sound off
+- Automatic buzzer disable after tone completion
+
+Contact detection hardware tested and optimized for reliable operation.
+================================================================================
+                       REQUIREMENT 2: INTERRUPT USAGE
+================================================================================
+
+TIMER0_COMPA_vect Interrupt:
+Location: lib/millis/millis.c, line 14-16
+
+ISR(TIMER0_COMPA_vect) {
+    milliseconds++;
+}
+
+How it works:
+1. Fires automatically every 1 millisecond
+2. Increments global milliseconds counter
+3. Provides system-wide timing reference
+4. Critical for all time-dependent game features
+
+Thread Safety Implementation:
+- volatile unsigned long milliseconds: Prevents compiler optimization
+- cli()/sei() in millis(): Atomic read operations prevent race conditions
+- ISR keeps timing accurate regardless of main program delays
+
+PCINT1_vect Interrupt - Wire Touch Detection:
+Location: lib/wire_interrupt/wire_interrupt.c
+
+ISR(PCINT1_vect) {
+    uint8_t current_state = (PINC & (1 << 5)) ? 1 : 0;
+    
+    // Check if PC5 changed from HIGH to LOW (wire touched)
+    if (last_wire_state == 1 && current_state == 0) {
+        wire_touched_flag = 1;  // Set flag for main program
+    }
+    
+    last_wire_state = current_state;
+}
+
+Wire Detection System:
+- PC5 configured as input with pull-up resistor enabled
+- PCICR |= (1 << 1): Enables Pin Change Interrupt for PORTC
+- PCMSK1 |= (1 << 5): Enables interrupt specifically for PC5 (PCINT13)
+- Edge detection: HIGH-to-LOW transition indicates wire contact
+- Interrupt-driven approach eliminates polling overhead
+- Flag-based communication between ISR and main program
+
+Why interrupts are essential:
+- Maintains precise timing even during blocking operations like _delay_ms()
+- Wire detection responds immediately regardless of main loop state
+- Enables true multitasking-like behavior in single-threaded system
+- Critical for responsive game interaction and accurate contact detection
+
+================================================================================
+                      REQUIREMENT 3: POINTER USAGE
+================================================================================
+
+DEMONSTRATION 1: Dynamic Memory Allocation
+Location: lib/score_logic/score_logic.c
+
+static uint16_t *contactTimes = NULL;  // Pointer to dynamically allocated array
+
+Memory allocation in startGame():
+contactTimes = malloc(MAX_CONTACTS * sizeof(uint16_t));
+
+Pointer dereferencing in handleContact():
+contactTimes[contactCount++] = (uint16_t)(millis() - startTime);
+
+This demonstrates:
+- Pointer declaration: uint16_t *contactTimes
+- Pointer assignment: malloc() returns memory address
+- Pointer arithmetic: Array indexing uses pointer + offset calculation
+- Memory management: free(contactTimes) releases allocated memory
+
+DEMONSTRATION 2: External Buffer Reference
+Location: lib/score_logic/score_logic.c, displayTimer() function
+
+extern char display_buffer[5];  // External reference to global array
+
+The extern declaration creates a pointer reference to the display_buffer
+array defined in main.c, allowing displayTimer() to modify the shared
+buffer directly rather than passing by value. This enables unified
+display management across multiple modules.
+
+DEMONSTRATION 3: Function Parameter Types
+Location: Various functions throughout codebase
+
+Pass by Value examples:
+- handleContact(uint8_t touched): Copies touched value to local parameter
+- playTone(float frequency, uint32_t duration): Copies parameters for local use
+- snprintf(display_buffer, 5, "C%03u", contactCount): Passes buffer address
+
+Pass by Reference examples:
+- printString(const char* str): Passes string address, not string copy
+- display_buffer[5]: Array name is pointer to first element
+- contactTimes[i]: Array access through pointer arithmetic
+
+================================================================================
+                    REQUIREMENT 4: MEMORY ALLOCATION
+================================================================================
+
+DYNAMIC MEMORY MANAGEMENT:
+Location: lib/score_logic/score_logic.c
+
+Allocation Strategy:
+1. startGame(): malloc(MAX_CONTACTS * sizeof(uint16_t))
+   - Allocates array to store contact timestamps
+   - Size: 50 contacts × 2 bytes = 100 bytes maximum
+   - Double-allocation prevention: Frees existing memory before reallocating
+
+2. Robust Error Handling:
+   if (!contactTimes) {
+       printString("ERROR: Memory allocation failed!\r\n");
+       return;
+   }
+
+3. Memory Safety Implementation:
+   - Null pointer checks: Only accesses memory if allocation succeeded
+   - Proper cleanup: free() called in stopGame() and resetScoreLogic()
+   - Memory leak prevention: contactTimes set to NULL after free()
+   - Bounds checking: contactCount < MAX_CONTACTS prevents buffer overflow
+
+GAME DATA TRACKING:
+What gets stored in dynamically allocated memory:
+- contactTimes[]: Timestamp of each wire contact (milliseconds since game start)
+- contactCount: Current number of contacts made
+- startTime: Game start timestamp for elapsed time calculation
+
+STATISTICAL ANALYSIS:
+Location: stopGame() function in score_logic.c
+
+The system performs real-time statistical analysis on contact data:
+1. Total game time calculation: (endTime - startTime) / 1000 seconds
+2. Penalty calculation: contactCount × 10 seconds per contact
+3. Final score: total_time - penalty (minimum 0)
+4. Contact interval analysis: min, max, and average time between contacts
+5. Individual contact logging: timestamp for each contact event
+
+Example Serial Monitor Output:
+=== Game Statistics: ==
+Total time: 45 s
+Contacts: 3
+Penalty: 30 (10s per contact)
+Final score: 15
+Touch 1: 12 s
+Touch 2: 28 s
+Touch 3: 41 s
+Min interval: 13 s
+Max interval: 16 s
+Avg interval: 14 s
+
+================================================================================
+                           GAME STATE MACHINE
+================================================================================
+
+STATE_IDLE:
+- Display shows "RDY " (ready state indicator)
+- Waits for left button press to start game
+- All systems initialized and ready
+- LED off, buzzer disabled
+- Serial output: "State is: IDLE, please press the left button to start the game..."
+
+STATE_RUNNING:
+- Dynamic display switching:
+  * Normal: Timer in "MMSS" format (minutes/seconds)
+  * On contact: Contact count "C###" format for 1 second, then returns to timer
+- Wire contact detection active via PC5 interrupt
+- Immediate feedback on contact:
+  * LED (PC0) lights for exactly 1 second
+  * Buzzer plays 880Hz A5 note for 150ms
+  * Contact timestamp recorded in memory
+- Right button stops game and transitions to FINISHED
+- Serial output: "State: RUNNING" and contact notifications
+
+STATE_FINISHED:
+- Display shows "DONE" 
+- Complete statistics printed to Serial Monitor
+- 5-second automatic delay before reset
+- Memory cleanup and system reset
+- Automatic transition back to STATE_IDLE
+- Serial output: "State: FINISHED" and full game statistics
+
+================================================================================
+                            TECHNICAL HIGHLIGHTS
+================================================================================
+
+1. UNIFIED DISPLAY SYSTEM:
+   - Single global display_buffer[5] prevents buffer conflicts
+   - display_tick() handles all physical display refresh via shift register
+   - displayTimer() manages content switching between timer and contact count
+   - Character and digit support: ALPHABET_MAP[] and SEGMENT_MAP[] lookup tables
+   - Multiplexed 4-digit display with proper timing for flicker-free operation
+
+2. INTERRUPT-DRIVEN ARCHITECTURE:
+   - TIMER0_COMPA_vect: 1ms system timing (milliseconds counter)
+   - PCINT1_vect: Immediate wire contact detection on PC5
+   - Flag-based communication between ISRs and main program
+   - Non-blocking operation preserves system responsiveness
+
+3. MEMORY LEAK PREVENTION:
+   - Automatic cleanup on game restart and system reset
+   - Robust error checking on malloc() with fallback handling
+   - Proper free() sequences in stopGame() and resetScoreLogic()
+   - Null pointer validation before memory access
+
+4. HARDWARE OPTIMIZATION:
+   - Wire detection: PC5 with pull-up resistor, HIGH-to-LOW edge detection
+   - LED control: PC0 with precise 1-second timing using millis()
+   - Buzzer: PD3 software-generated 880Hz square wave, active-low operation
+   - Display: Shift register communication (LATCH/CLK/DATA pins)
+
+5. MODULAR ARCHITECTURE:
+   - Clean separation between game logic and hardware control
+   - Reusable library components for future embedded projects
+   - Standardized header interfaces for all hardware modules
+   - Similar architectural pattern to professional embedded systems
+

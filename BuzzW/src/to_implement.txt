@@ -1,0 +1,65 @@
+# Buzz Wire Game – Project Progress
+
+## Implemented Features
+
+  ### Whats working: 
+    - Game starts on left button press.
+    Final score is calculated:
+      - `final_score = time_elapsed - (contact_count × 10)`
+    - Game ends automatically when goal is reached.
+    - Game state handled via a `game_state_t` state machine.
+    - Memory is dynamically allocated to track contacts.
+
+    - Logs contact timestamp using dynamic memory.
+
+    - On game end, prints:
+      - Number of contacts.
+      - Elapsed time.
+      - List of all contact timestamps.
+
+      ### Gameplay Mechanics
+    - Add **right button to stop the game** when goal is reached:
+    - Must press right button after reaching the end to finish the game.          
+    - Only then should the final score be displayed.
+
+   ### To Implement: 
+  Contact with the wire:
+    - Triggers buzzer.
+    - Displays contact count temporarily.
+
+    ### Timer & Display
+      - Timer runs using hardware timer with interrupt.
+      - Time is shown on 4-digit display (MM:SS format).
+      - Contact count temporarily replaces timer display for brief feedback.
+
+
+
+### Technical Requirements Met
+-  At least one timer.    - Yes
+-  At least one interrupt (for timer updates).    - Yes
+-  Use of pointers (in function calls and memory management).   -Yes
+-  Dynamic memory allocation for contact tracking.    -Yes
+
+---
+
+## Features To Be Implemented
+
+
+
+### Contact Feedback Polish
+- [ ] Display contact count for **exactly 1 second** after each hit.
+- [ ] Flash **LEDs during contact** (sort of works, will see after proper wire detection).
+- [ ] Ensure **buzzer is active during contact**.
+
+### Game Statistics
+- [ ] After the game, calculate and show on Serial:
+  - [ ] **Average time between contacts**
+  - [ ] **Longest period without contact**
+  - [ ] **Shortest period without contact**
+
+### Polishing & Memory
+- [ ] Clear/reset dynamic memory and game state after each round.
+- [ ] Prevent game from being restarted immediately after ending.
+- [ ] Improve responsiveness (debounce buttons if needed).
+
+---
