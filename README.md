@@ -49,6 +49,8 @@ An Arduino-based BuzzWire game where players navigate a wire loop along a twiste
 5. Press left button to start game
 
 ## Project Structure
+*Certian sections of the lib were prewritten (such as the usart for serial comm)
+
 ```
 lib/                    # Hardware abstraction libraries
 ├── buttons/           # Button input handling
@@ -68,28 +70,6 @@ BuzzW/                 # Main project folder
 └── include/          # Project headers
 ```
 
-## Course Requirements Met
-- ✅ Timer implementation (TIMER0 CTC mode)
-- ✅ Interrupt service routines (PCINT1_vect, TIMER0_COMPA_vect)
-- ✅ Pointer usage (dynamic arrays, external references)
-- ✅ Memory allocation (malloc/free with error handling)
-- ✅ Modular architecture with reusable libraries
-- ✅ Real-time embedded system operation
-
-## Game Statistics Output Example
-```
-=== Game Statistics: ==
-Total time: 45 s
-Contacts: 3
-Penalty: 30 (10s per contact)
-Final score: 15
-Touch 1: 12 s
-Touch 2: 28 s
-Touch 3: 41 s
-Min interval: 13 s
-Max interval: 16 s
-Avg interval: 14 s
-```
 
 ## Author
 Kristopher Montgomery - Embedded Systems Course Project
